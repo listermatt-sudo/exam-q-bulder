@@ -71,7 +71,7 @@ def get_valid_questions(month_year, paper):
         filename = build_filename(month_year, paper, q)
         url = f"{BASE_URL}/{filename}"
 
-        response = requests.head(url)
+        response = requests.get(url)
 
         if response.status_code == 200:
             valid.append(q)
