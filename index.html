@@ -196,11 +196,11 @@ async function generate() {
         // ✅ Ask user for filename
         let filename = prompt(
             "Enter file name:",
-            new Date().toISOString().slice(0,10) + "_worksheet"
+            new Date().toISOString().slice(0,10) + "_exam practice"
         );
 
         if (!filename) {
-            filename = "worksheet";
+            filename = "exam practice";
         }
 
         const extension = type === "word" ? ".docx" : ".pdf";
