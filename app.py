@@ -11,6 +11,7 @@ from reportlab.lib.utils import ImageReader
 
 import requests
 from io import BytesIO
+import json
 
 # ✅ FastAPI app
 app = FastAPI()
@@ -24,22 +25,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Supabase base URL
+# ✅ Supabase storage
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
-# ✅ Your full dataset
-MONTHS = [
-    "June 2025", "June 2024", "June 2023", "June 2022",
-    "June 2019", "June 2018", "June 2017",
-    "November 2025", "November 2024", "November 2023",
-    "November 2022", "November 2021",
-    "November 2019", "November 2018", "November 2017"
-]
 
-PAPERS = ["1F", "2F", "3F", "1H", "2H", "3H"]
+# ✅ Load pre-built structure file (instant)
+def load_structure():
+    with open("structure.json", "r") as f:
+        return json.load(f)
 
-# ✅ Cache (IMPORTANT)
-structure_cache = None
+
+# ✅ Global cache (loads once at startup)
+structure_cache = load_structure()
 
 
 # ✅ Request model
@@ -48,7 +45,7 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Filename builder (matches your storage EXACTLY)
+# ✅ Build filename (must match your actual files)
 def build_filename(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
@@ -61,66 +58,10 @@ def build_filename(month_year, paper, q):
     return f"{month} {year} {paper}_Q{q}.png"
 
 
-# ✅ ✅ Optimised question detection
-def get_valid_questions(month_year, paper):
-
-    valid = []
-    misses = 0
-
-    for q in range(1, 36):  # ✅ up to 35 questions
-
-        filename = build_filename(month_year, paper, q)
-        url = f"{BASE_URL}/{filename}"
-
-        try:
-            response = requests.get(url, timeout=3)
-
-            if response.status_code == 200:
-                valid.append(q)
-                misses = 0  # reset miss counter
-            else:
-                misses += 1
-
-        except:
-            misses += 1
-
-        # ✅ STOP EARLY (huge speed improvement)
-        if misses >= 5 and q > 5:
-            break
-
-    return valid
-
-
-# ✅ ✅ STRUCTURE ENDPOINT (with caching)
+# ✅ Structure endpoint (VERY FAST)
 @app.get("/structure")
 def get_structure():
-
-    global structure_cache
-
-    # ✅ Return cached instantly
-    if structure_cache is not None:
-        return structure_cache
-
-    structure = {}
-
-    for month in MONTHS:
-
-        month_data = {}
-
-        for paper in PAPERS:
-
-            questions = get_valid_questions(month, paper)
-
-            if questions:
-                month_data[paper] = questions
-
-        if month_data:
-            structure[month] = month_data
-
-    # ✅ Store result so it only computes once
-    structure_cache = structure
-
-    return structure
+    return structure_cache
 
 
 # ✅ Word export
@@ -133,7 +74,6 @@ def create_word(entries, filename):
 
         doc.add_heading(f"{paper} — Q{q}", level=1)
 
-        # ✅ reconstruct filename
         parts = paper.split()
         month = parts[0]
         year = parts[1]
@@ -184,9 +124,13 @@ def create_pdf(entries, filename):
             c.showPage()
             y = height - 40
 
-        c.drawImage(img_obj, 40, y - new_h,
-                    width=width - 80,
-                    height=new_h)
+        c.drawImage(
+            img_obj,
+            40,
+            y - new_h,
+            width=width - 80,
+            height=new_h
+        )
 
         y -= new_h + 20
 
@@ -207,7 +151,7 @@ def generate(data: RequestData):
     return FileResponse(filename, filename=filename)
 
 
-# ✅ Home route
+# ✅ Health check
 @app.get("/")
 def home():
     return {"message": "Worksheet Builder API is running"}
