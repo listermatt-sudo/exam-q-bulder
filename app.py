@@ -115,3 +115,7 @@ def generate(data: RequestData):
 
     # ✅ Return file to browser
     return FileResponse(filename, filename=filename)
+
+@app.get("/")
+def home():
+    return {"message": "Worksheet Builder API is running"}
