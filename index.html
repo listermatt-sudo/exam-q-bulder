@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Skills Map Exam Practice Builder</title>
+    <title>Worksheet Builder</title>
 
     <style>
         body {
@@ -11,7 +11,7 @@
         }
 
         .container {
-            width: 700px;
+            width: 750px;
             margin: auto;
             margin-top: 50px;
             background: white;
@@ -20,15 +20,18 @@
             box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
         }
 
-        /* ✅ Centre rows properly */
         .row {
             display: flex;
             gap: 10px;
             width: fit-content;
             margin: 5px auto;
+            align-items: center;
         }
 
-        /* ✅ Centre headers */
+        .row.dragging {
+            background: #e8f0fe;
+        }
+
         .header-row {
             display: flex;
             gap: 10px;
@@ -48,8 +51,8 @@
         }
 
         button {
-            padding: 10px 15px;
-            margin: 10px;
+            padding: 8px 12px;
+            margin: 5px;
             background: #0078d4;
             color: white;
             border: none;
@@ -59,6 +62,19 @@
 
         button:hover {
             background: #005a9e;
+        }
+
+        .delete-btn {
+            background: #d83b01;
+        }
+
+        .delete-btn:hover {
+            background: #a4262c;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            font-size: 18px;
         }
 
         #loginBox {
@@ -71,7 +87,7 @@
 
 <!-- LOGIN -->
 <div id="loginBox">
-    <h2>Skills Map Exam Practice Builder Login</h2>
+    <h2>Worksheet Builder Login</h2>
     <input type="password" id="password" placeholder="Enter password">
     <br><br>
     <button onclick="login()">Login</button>
@@ -79,12 +95,14 @@
 
 <!-- APP -->
 <div class="container" id="app" style="display:none;">
-    <h1>Skills Map Exam Practice Builder</h1>
+    <h1>Worksheet Builder</h1>
 
     <div class="header-row">
-        <div class="header-cell">Series</div>
+        <div></div>
+        <div class="header-cell">Month</div>
         <div class="header-cell">Paper</div>
         <div class="header-cell">Question</div>
+        <div></div>
     </div>
 
     <div id="rows">Loading...</div>
@@ -92,7 +110,7 @@
     <button onclick="addRow()">Add Row</button>
     <button onclick="generate()">Generate</button>
 
-    <br><br>
+    <br>
 
     <label><input type="radio" name="type" value="word" checked> Word</label>
     <label><input type="radio" name="type" value="pdf"> PDF</label>
@@ -100,7 +118,6 @@
 
 <script>
 
-// ✅ Login
 function login() {
     const pw = document.getElementById("password").value;
 
@@ -115,7 +132,6 @@ function login() {
 
 let structure = {};
 
-// ✅ Load structure + Excel data
 async function loadStructure() {
     try {
         const res = await fetch("/structure");
@@ -125,18 +141,15 @@ async function loadStructure() {
 
         const loaded = loadFromURL();
 
-        if (!loaded) {
-            addRow();
-        }
+        if (!loaded) addRow();
 
     } catch (err) {
         document.getElementById("rows").innerHTML = "Failed to load data.";
-        console.error(err);
     }
 }
 
 
-// ✅ ✅ LOAD FROM EXCEL (NO DUPLICATES)
+// ✅ LOAD FROM EXCEL (NO DUPLICATES)
 function loadFromURL() {
 
     const params = new URLSearchParams(window.location.search);
@@ -144,11 +157,9 @@ function loadFromURL() {
 
     if (!data) return false;
 
-    const entries = data.split(";");
+    const seen = new Set();
 
-    const seen = new Set(); // ✅ prevents duplicates
-
-    entries.forEach(entry => {
+    data.split(";").forEach(entry => {
 
         if (!entry) return;
 
@@ -160,42 +171,58 @@ function loadFromURL() {
             monthYear = monthYear.replace("Nov", "November");
         }
 
-        monthYear = monthYear.trim();
-        paper = paper.trim();
-        q = parseInt(q);
-
         const key = `${monthYear}|${paper}|${q}`;
-
-        if (seen.has(key)) return;  // ✅ skip duplicate
+        if (seen.has(key)) return;
 
         seen.add(key);
 
-        addRowFromData(monthYear, paper, q);
+        addRowFromData(monthYear.trim(), paper.trim(), parseInt(q));
     });
 
     return true;
 }
 
 
-// ✅ Add blank row
+// ✅ ADD ROW
 function addRow() {
-
-    const div = document.createElement("div");
-    div.className = "row";
-
-    div.innerHTML = `
-        <select class="month"></select>
-        <select class="paper"></select>
-        <select class="question"></select>
-    `;
-
+    const div = createRow();
     document.getElementById("rows").appendChild(div);
-
     populateRow(div);
 }
 
 
-// ✅ Populate dropdown row
+// ✅ CREATE ROW TEMPLATE
+function createRow() {
+
+    const div = document.createElement("div");
+    div.className = "row";
+    div.draggable = true;
+
+    div.innerHTML = `
+        <span class="drag-handle">☰</span>
+        <select class="month"></select>
+        <select class="paper"></select>
+        <select class="question"></select>
+        <button class="delete-btn">X</button>
+    `;
+
+    // ✅ Delete button
+    div.querySelector(".delete-btn").onclick = () => div.remove();
+
+    // ✅ Drag events
+    div.addEventListener("dragstart", () => {
+        div.classList.add("dragging");
+    });
+
+    div.addEventListener("dragend", () => {
+        div.classList.remove("dragging");
+    });
+
+    return div;
+}
+
+
+// ✅ POPULATE ROW
 function populateRow(div) {
 
     const monthSelect = div.querySelector(".month");
@@ -206,9 +233,9 @@ function populateRow(div) {
     monthSelect.innerHTML = months.map(m => `<option>${m}</option>`).join("");
 
     function updatePapers() {
-        const selectedMonth = monthSelect.value;
+        const m = monthSelect.value;
+        let papers = Object.keys(structure[m] || {});
 
-        let papers = Object.keys(structure[selectedMonth] || {});
         const order = ["1F","2F","3F","1H","2H","3H"];
         papers.sort((a,b)=> order.indexOf(a)-order.indexOf(b));
 
@@ -217,13 +244,8 @@ function populateRow(div) {
     }
 
     function updateQuestions() {
-        const selectedMonth = monthSelect.value;
-        const selectedPaper = paperSelect.value;
-
-        const questions = structure[selectedMonth]?.[selectedPaper] || [];
-
-        questionSelect.innerHTML =
-            questions.map(q => `<option>Q${q}</option>`).join("");
+        const qlist = structure[monthSelect.value]?.[paperSelect.value] || [];
+        questionSelect.innerHTML = qlist.map(q => `<option>Q${q}</option>`).join("");
     }
 
     monthSelect.addEventListener("change", updatePapers);
@@ -233,18 +255,10 @@ function populateRow(div) {
 }
 
 
-// ✅ Add row from Excel
+// ✅ ADD ROW FROM EXCEL
 function addRowFromData(monthYear, paper, q) {
 
-    const div = document.createElement("div");
-    div.className = "row";
-
-    div.innerHTML = `
-        <select class="month"></select>
-        <select class="paper"></select>
-        <select class="question"></select>
-    `;
-
+    const div = createRow();
     document.getElementById("rows").appendChild(div);
 
     const monthSelect = div.querySelector(".month");
@@ -258,7 +272,6 @@ function addRowFromData(monthYear, paper, q) {
 
     function updatePapers() {
         let papers = Object.keys(structure[monthYear] || {});
-
         const order = ["1F","2F","3F","1H","2H","3H"];
         papers.sort((a,b)=> order.indexOf(a)-order.indexOf(b));
 
@@ -269,29 +282,58 @@ function addRowFromData(monthYear, paper, q) {
     }
 
     function updateQuestions() {
-        const questions = structure[monthYear]?.[paper] || [];
-
-        questionSelect.innerHTML =
-            questions.map(qv => `<option>Q${qv}</option>`).join("");
-
-        questionSelect.value = "Q" + q;
+        const qlist = structure[monthYear]?.[paper] || [];
+        questionSelect.innerHTML = qlist.map(x => `<option>Q${x}</option>`).join("");
+        questionSelect.value = "Q"+q;
     }
 
     updatePapers();
 }
 
 
-// ✅ Generate Skills Map Exam Practice
+// ✅ DRAG + DROP LOGIC
+const container = document.getElementById("rows");
+
+container.addEventListener("dragover", e => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(container, e.clientY);
+    const dragging = document.querySelector(".dragging");
+
+    if (!dragging) return;
+
+    if (afterElement == null) {
+        container.appendChild(dragging);
+    } else {
+        container.insertBefore(dragging, afterElement);
+    }
+});
+
+function getDragAfterElement(container, y) {
+    const elements = [...container.querySelectorAll(".row:not(.dragging)")];
+
+    return elements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height/2;
+
+        if (offset < 0 && offset > closest.offset) {
+            return {offset, element: child};
+        } else {
+            return closest;
+        }
+    }, {offset: Number.NEGATIVE_INFINITY}).element;
+}
+
+
+// ✅ GENERATE
 async function generate() {
 
     const rows = document.querySelectorAll("#rows .row");
     let entries = [];
 
     rows.forEach(row => {
-
         const monthYear = row.querySelector(".month").value;
         const paper = row.querySelector(".paper").value;
-        const q = row.querySelector(".question").value.replace("Q", "");
+        const q = row.querySelector(".question").value.replace("Q","");
 
         const parts = monthYear.split(" ");
         const paperName = `${parts[0]} ${parts[1]} ${paper}`;
@@ -301,34 +343,24 @@ async function generate() {
 
     const type = document.querySelector('input[name="type"]:checked').value;
 
-    try {
-        const response = await fetch("/generate", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({entries: entries, filetype: type})
-        });
+    const response = await fetch("/generate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({entries: entries, filetype: type})
+    });
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
 
-        let filename = prompt(
-            "Enter file name:",
-            "Skills Map Exam Practice"
-        );
+    let filename = prompt("Enter file name:", "Skills Map Exam Practice");
+    if (!filename) filename = "Skills Map Exam Practice";
 
-        if (!filename) filename = "Exam Practice";
+    const ext = type === "word" ? ".docx" : ".pdf";
 
-        const ext = type === "word" ? ".docx" : ".pdf";
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename + ext;
-        a.click();
-
-    } catch (err) {
-        alert("Error generating file");
-        console.error(err);
-    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename + ext;
+    a.click();
 }
 
 </script>
