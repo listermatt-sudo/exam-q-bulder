@@ -66,17 +66,24 @@ def build_base_name(month_year, paper, q):
 def get_question_images(month_year, paper, q):
 
     base_name = build_base_name(month_year, paper, q)
-
     images = []
+
+    # ✅ FIRST: check if single-page exists
+    single_url = f"{BASE_URL}/{base_name}.png"
+
+    try:
+        r = requests.get(single_url)
+        if r.status_code == 200:
+            images.append(BytesIO(r.content))
+            return images  # ✅ done if single-page
+    except:
+        pass
+
+    # ✅ OTHERWISE: check multi-page (_1, _2)
     page = 1
 
     while True:
-
-        if page == 1:
-            filename = f"{base_name}.png"
-        else:
-            filename = f"{base_name}_{page}.png"
-
+        filename = f"{base_name}_{page}.png"
         url = f"{BASE_URL}/{filename}"
 
         try:
