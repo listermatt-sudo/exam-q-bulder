@@ -61,16 +61,22 @@ def get_all_files():
 
     headers = {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}"
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json"
     }
 
-    response = requests.get(url, headers=headers)
+    # ✅ IMPORTANT: send prefix = "" (root folder)
+    response = requests.post(
+        url,
+        headers=headers,
+        json={"prefix": ""}
+    )
 
-    print("STATUS:", response.status_code)
-    print("RESPONSE:", response.text)
+    if response.status_code != 200:
+        print("ERROR:", response.status_code, response.text)
+        return []
 
     return response.json()
-
 
 # ✅ Build structured data
 def build_structure(files):
