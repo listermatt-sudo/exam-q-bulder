@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from docx import Document
-from docx.shared import Inches
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
@@ -18,7 +17,7 @@ import os
 # ✅ FastAPI app
 app = FastAPI()
 
-# ✅ CORS (safe to keep, even though same-origin now)
+# ✅ CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,11 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Supabase base URL
+# ✅ Supabase storage
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
 
-# ✅ Load structure.json safely
+# ✅ Load structure.json
 def load_structure():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, "structure.json")
@@ -40,7 +39,6 @@ def load_structure():
         return json.load(f)
 
 
-# ✅ Cache structure (instant load)
 structure_cache = load_structure()
 
 
@@ -50,7 +48,7 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Build base filename (no page suffix)
+# ✅ Build filename (no page suffix)
 def build_base_name(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
@@ -62,24 +60,24 @@ def build_base_name(month_year, paper, q):
     return f"{month} {year} {paper}_Q{q}"
 
 
-# ✅ ✅ Get ALL pages of a question
+# ✅ Load all pages of a question
 def get_question_images(month_year, paper, q):
 
     base_name = build_base_name(month_year, paper, q)
     images = []
 
-    # ✅ FIRST: check if single-page exists
+    # ✅ Try single page
     single_url = f"{BASE_URL}/{base_name}.png"
 
     try:
         r = requests.get(single_url)
         if r.status_code == 200:
             images.append(BytesIO(r.content))
-            return images  # ✅ done if single-page
+            return images
     except:
         pass
 
-    # ✅ OTHERWISE: check multi-page (_1, _2)
+    # ✅ Try multi-page
     page = 1
 
     while True:
@@ -100,24 +98,24 @@ def get_question_images(month_year, paper, q):
     return images
 
 
-# ✅ ✅ Serve frontend (index.html)
+# ✅ Serve frontend
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
     with open("index.html", "r") as f:
         return f.read()
 
 
-# ✅ ✅ Structure endpoint
+# ✅ Structure endpoint
 @app.get("/structure")
 def get_structure():
     return structure_cache
 
 
-# ✅ ✅ Word generation
+# ✅ ✅ ✅ WORD EXPORT (UPDATED - FULL WIDTH IMAGES)
 def create_word(entries, filename):
 
     doc = Document()
-    doc.add_heading("Worksheet", 0)
+    doc.add_heading("Skills Map Exam Practice", 0)
 
     for paper, q in entries:
 
@@ -130,17 +128,21 @@ def create_word(entries, filename):
 
         images = get_question_images(f"{month} {year}", paper_code, q)
 
-      for img in images:
-    section = doc.sections[0]
-    available_width = section.page_width - section.left_margin - section.right_margin
-    doc.add_picture(img, width=available_width)
+        for img in images:
+
+            # ✅ Calculate available page width
+            section = doc.sections[0]
+            available_width = section.page_width - section.left_margin - section.right_margin
+
+            # ✅ Add full-width image
+            doc.add_picture(img, width=available_width)
 
         doc.add_page_break()
 
     doc.save(filename)
 
 
-# ✅ ✅ PDF generation
+# ✅ PDF export (unchanged - already good)
 def create_pdf(entries, filename):
 
     c = canvas.Canvas(filename, pagesize=A4)
@@ -181,7 +183,7 @@ def create_pdf(entries, filename):
     c.save()
 
 
-# ✅ ✅ Generate endpoint
+# ✅ Generate endpoint
 @app.post("/generate")
 def generate(data: RequestData):
 
@@ -195,7 +197,7 @@ def generate(data: RequestData):
     return FileResponse(filename, filename=filename)
 
 
-# ✅ ✅ Health check
+# ✅ Health check
 @app.get("/health")
 def health():
     return {"status": "ok"}
