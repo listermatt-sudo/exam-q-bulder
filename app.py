@@ -130,8 +130,10 @@ def create_word(entries, filename):
 
         images = get_question_images(f"{month} {year}", paper_code, q)
 
-        for img in images:
-            doc.add_picture(img, width=Inches(6.5))
+      for img in images:
+    section = doc.sections[0]
+    available_width = section.page_width - section.left_margin - section.right_margin
+    doc.add_picture(img, width=available_width)
 
         doc.add_page_break()
 
