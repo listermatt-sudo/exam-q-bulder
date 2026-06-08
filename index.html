@@ -73,8 +73,6 @@
 
 <script>
 
-// ✅ NO BASE_URL NEEDED anymore (same server)
-
 // ✅ Login
 function login() {
     const pw = document.getElementById("password").value;
@@ -91,7 +89,7 @@ function login() {
 // ✅ Global structure
 let structure = {};
 
-// ✅ Load structure from backend (same origin)
+// ✅ Load structure
 async function loadStructure() {
 
     try {
@@ -108,7 +106,7 @@ async function loadStructure() {
 }
 
 
-// ✅ Add new row
+// ✅ Add row
 function addRow() {
 
     const div = document.createElement("div");
@@ -125,28 +123,26 @@ function addRow() {
     const paperSelect = div.querySelector(".paper");
     const questionSelect = div.querySelector(".question");
 
-    // ✅ Fill months
+    // ✅ Populate months
     const months = Object.keys(structure).sort();
     monthSelect.innerHTML = months.map(m => `<option>${m}</option>`).join("");
 
-    // ✅ Populate papers dynamically
+    // ✅ Update papers
     function updatePapers() {
         const selectedMonth = monthSelect.value;
 
-        const papers = Object.keys(structure[selectedMonth] || {});
+        let papers = Object.keys(structure[selectedMonth] || {});
 
-        // ✅ Sort nicely: 1F → 3H
-        papers.sort((a, b) => {
-            const order = ["1F","2F","3F","1H","2H","3H"];
-            return order.indexOf(a) - order.indexOf(b);
-        });
+        // ✅ Sort correctly
+        const order = ["1F","2F","3F","1H","2H","3H"];
+        papers.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
         paperSelect.innerHTML = papers.map(p => `<option>${p}</option>`).join("");
 
         updateQuestions();
     }
 
-    // ✅ Populate questions dynamically
+    // ✅ Update questions
     function updateQuestions() {
         const selectedMonth = monthSelect.value;
         const selectedPaper = paperSelect.value;
@@ -197,9 +193,21 @@ async function generate() {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
 
+        // ✅ Ask user for filename
+        let filename = prompt(
+            "Enter file name:",
+            new Date().toISOString().slice(0,10) + "_worksheet"
+        );
+
+        if (!filename) {
+            filename = "worksheet";
+        }
+
+        const extension = type === "word" ? ".docx" : ".pdf";
+
         const a = document.createElement("a");
         a.href = url;
-        a.download = type === "word" ? "worksheet.docx" : "worksheet.pdf";
+        a.download = filename + extension;
         a.click();
 
     } catch (err) {
