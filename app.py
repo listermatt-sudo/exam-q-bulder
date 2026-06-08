@@ -17,7 +17,7 @@ import os
 # ✅ FastAPI app
 app = FastAPI()
 
-# ✅ CORS
+# ✅ CORS (safe to keep)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Supabase storage
+# ✅ Image storage
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
 
@@ -48,7 +48,7 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Build filename (no page suffix)
+# ✅ Build base filename
 def build_base_name(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
@@ -60,13 +60,13 @@ def build_base_name(month_year, paper, q):
     return f"{month} {year} {paper}_Q{q}"
 
 
-# ✅ Load all pages of a question
+# ✅ Load all pages for a question
 def get_question_images(month_year, paper, q):
 
     base_name = build_base_name(month_year, paper, q)
     images = []
 
-    # ✅ Try single page
+    # ✅ Try single page first
     single_url = f"{BASE_URL}/{base_name}.png"
 
     try:
@@ -77,7 +77,7 @@ def get_question_images(month_year, paper, q):
     except:
         pass
 
-    # ✅ Try multi-page
+    # ✅ Otherwise check multi-page (_1, _2, ...)
     page = 1
 
     while True:
@@ -111,19 +111,19 @@ def get_structure():
     return structure_cache
 
 
-# ✅ ✅ ✅ WORD EXPORT (UPDATED - FULL WIDTH IMAGES)
+# ✅ ✅ ✅ WORD EXPORT (full width + narrow margins)
 def create_word(entries, filename):
 
     doc = Document()
 
-# ✅ Set narrower margins (in inches)
-section = doc.sections[0]
-section.top_margin = 700000    # 0.64 inches
-section.bottom_margin = 700000
-section.left_margin = 700000
-section.right_margin = 700000()
+    # ✅ Set narrower margins (~0.75 inch)
+    section = doc.sections[0]
+    section.top_margin = 700000
+    section.bottom_margin = 700000
+    section.left_margin = 700000
+    section.right_margin = 700000
 
-doc.add_heading("Skills Map Exam Practice", 0)
+    doc.add_heading("Skills Map Exam Practice", 0)
 
     for paper, q in entries:
 
@@ -138,11 +138,14 @@ doc.add_heading("Skills Map Exam Practice", 0)
 
         for img in images:
 
-            # ✅ Calculate available page width
+            # ✅ Compute full available width
             section = doc.sections[0]
-            available_width = section.page_width - section.left_margin - section.right_margin
+            available_width = (
+                section.page_width
+                - section.left_margin
+                - section.right_margin
+            )
 
-            # ✅ Add full-width image
             doc.add_picture(img, width=available_width)
 
         doc.add_page_break()
@@ -150,7 +153,7 @@ doc.add_heading("Skills Map Exam Practice", 0)
     doc.save(filename)
 
 
-# ✅ PDF export (unchanged - already good)
+# ✅ PDF export (unchanged)
 def create_pdf(entries, filename):
 
     c = canvas.Canvas(filename, pagesize=A4)
