@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Skills Map Exam Question Builder</title>
+    <title>Worksheet Builder</title>
 
     <style>
         body {
@@ -73,8 +73,7 @@
 
 <script>
 
-// ✅ CHANGE THIS
-const BASE_API = "https://exam-q-builder.onrender.com";
+// ✅ NO BASE_URL NEEDED anymore (same server)
 
 // ✅ Login
 function login() {
@@ -89,14 +88,14 @@ function login() {
     }
 }
 
-// ✅ Global data
+// ✅ Global structure
 let structure = {};
 
-// ✅ Load structure from backend
+// ✅ Load structure from backend (same origin)
 async function loadStructure() {
 
     try {
-        const res = await fetch(`${BASE_API}/structure`);
+        const res = await fetch("/structure");
         structure = await res.json();
 
         document.getElementById("rows").innerHTML = "";
@@ -104,11 +103,12 @@ async function loadStructure() {
 
     } catch (err) {
         document.getElementById("rows").innerHTML = "Failed to load data.";
-        console.log(err);
+        console.error(err);
     }
 }
 
-// ✅ Add row
+
+// ✅ Add new row
 function addRow() {
 
     const div = document.createElement("div");
@@ -125,28 +125,36 @@ function addRow() {
     const paperSelect = div.querySelector(".paper");
     const questionSelect = div.querySelector(".question");
 
-    // ✅ Populate months
-    const months = Object.keys(structure);
+    // ✅ Fill months
+    const months = Object.keys(structure).sort();
     monthSelect.innerHTML = months.map(m => `<option>${m}</option>`).join("");
 
-    // ✅ Update papers when month changes
+    // ✅ Populate papers dynamically
     function updatePapers() {
         const selectedMonth = monthSelect.value;
+
         const papers = Object.keys(structure[selectedMonth] || {});
+
+        // ✅ Sort nicely: 1F → 3H
+        papers.sort((a, b) => {
+            const order = ["1F","2F","3F","1H","2H","3H"];
+            return order.indexOf(a) - order.indexOf(b);
+        });
 
         paperSelect.innerHTML = papers.map(p => `<option>${p}</option>`).join("");
 
         updateQuestions();
     }
 
-    // ✅ Update questions when paper changes
+    // ✅ Populate questions dynamically
     function updateQuestions() {
         const selectedMonth = monthSelect.value;
         const selectedPaper = paperSelect.value;
 
-        const questions = structure[selectedMonth][selectedPaper] || [];
+        const questions = structure[selectedMonth]?.[selectedPaper] || [];
 
-        questionSelect.innerHTML = questions.map(q => `<option>Q${q}</option>`).join("");
+        questionSelect.innerHTML =
+            questions.map(q => `<option>Q${q}</option>`).join("");
     }
 
     monthSelect.addEventListener("change", updatePapers);
@@ -155,7 +163,8 @@ function addRow() {
     updatePapers();
 }
 
-// ✅ Generate
+
+// ✅ Generate worksheet
 async function generate() {
 
     const rows = document.querySelectorAll("#rows div");
@@ -169,7 +178,7 @@ async function generate() {
 
         const parts = monthYear.split(" ");
         const month = parts[0];
-        const year = parts[1].slice(-2);
+        const year = parts[1];
 
         const paperName = `${month} ${year} ${paper}`;
 
@@ -179,7 +188,7 @@ async function generate() {
     const type = document.querySelector('input[name="type"]:checked').value;
 
     try {
-        const response = await fetch(`${BASE_API}/generate`, {
+        const response = await fetch("/generate", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({entries: entries, filetype: type})
@@ -195,7 +204,7 @@ async function generate() {
 
     } catch (err) {
         alert("Error generating file");
-        console.log(err);
+        console.error(err);
     }
 }
 
