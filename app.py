@@ -12,11 +12,11 @@ from reportlab.lib.utils import ImageReader
 import requests
 from io import BytesIO
 import json
+import os
 
 # ✅ FastAPI app
 app = FastAPI()
 
-# ✅ Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,24 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Supabase storage
+# ✅ Supabase public URL
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
 
-# ✅ Load pre-built structure file (instant)
-import os
-
+# ✅ Load structure.json safely
 def load_structure():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, "structure.json")
-
-    print("Looking for structure at:", file_path)
 
     with open(file_path, "r") as f:
         return json.load(f)
 
 
-# ✅ Global cache (loads once at startup)
+# ✅ Cached structure (instant)
 structure_cache = load_structure()
 
 
@@ -52,28 +48,53 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Build filename (must match your actual files)
-def build_filename(month_year, paper, q):
+# ✅ Build base filename (WITHOUT page suffix)
+def build_base_name(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
     year = parts[1][-2:]
 
-    # ✅ Your files use "Nov"
     if month == "November":
         month = "Nov"
 
-    return f"{month} {year} {paper}_Q{q}.png"
+    return f"{month} {year} {paper}_Q{q}"
 
 
-# ✅ Structure endpoint (VERY FAST)
+# ✅ ✅ Fetch ALL pages of a question
+def get_question_images(month_year, paper, q):
+
+    base_name = build_base_name(month_year, paper, q)
+
+    images = []
+    page = 1
+
+    while True:
+
+        if page == 1:
+            filename = f"{base_name}.png"
+        else:
+            filename = f"{base_name}_{page}.png"
+
+        url = f"{BASE_URL}/{filename}"
+
+        try:
+            r = requests.get(url)
+        except:
+            break
+
+        if r.status_code != 200:
+            break
+
+        images.append(BytesIO(r.content))
+        page += 1
+
+    return images
+
+
+# ✅ Structure endpoint
 @app.get("/structure")
 def get_structure():
     return structure_cache
-
-@app.get("/test-file")
-def test_file():
-    import os
-    return {"files": os.listdir()}
 
 
 # ✅ Word export
@@ -91,13 +112,10 @@ def create_word(entries, filename):
         year = parts[1]
         paper_code = parts[2]
 
-        file_name = build_filename(f"{month} {year}", paper_code, q)
-        url = f"{BASE_URL}/{file_name}"
+        images = get_question_images(f"{month} {year}", paper_code, q)
 
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            doc.add_picture(BytesIO(response.content), width=Inches(5))
+        for img in images:
+            doc.add_picture(img, width=Inches(5))
 
         doc.add_page_break()
 
@@ -118,33 +136,29 @@ def create_pdf(entries, filename):
         year = parts[1]
         paper_code = parts[2]
 
-        file_name = build_filename(f"{month} {year}", paper_code, q)
-        url = f"{BASE_URL}/{file_name}"
+        images = get_question_images(f"{month} {year}", paper_code, q)
 
-        response = requests.get(url)
+        for img_data in images:
 
-        if response.status_code != 200:
-            continue
+            img_obj = ImageReader(img_data)
+            img_w, img_h = img_obj.getSize()
 
-        img_obj = ImageReader(BytesIO(response.content))
-        img_w, img_h = img_obj.getSize()
+            scale = (width - 80) / img_w
+            new_h = img_h * scale
 
-        scale = (width - 80) / img_w
-        new_h = img_h * scale
+            if y - new_h < 50:
+                c.showPage()
+                y = height - 40
 
-        if y - new_h < 50:
-            c.showPage()
-            y = height - 40
+            c.drawImage(
+                img_obj,
+                40,
+                y - new_h,
+                width=width - 80,
+                height=new_h
+            )
 
-        c.drawImage(
-            img_obj,
-            40,
-            y - new_h,
-            width=width - 80,
-            height=new_h
-        )
-
-        y -= new_h + 20
+            y -= new_h + 20
 
     c.save()
 
