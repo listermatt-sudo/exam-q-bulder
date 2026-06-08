@@ -123,7 +123,7 @@ section.bottom_margin = 700000
 section.left_margin = 700000
 section.right_margin = 700000()
 
-    doc.add_heading("Skills Map Exam Practice", 0)
+doc.add_heading("Skills Map Exam Practice", 0)
 
     for paper, q in entries:
 
