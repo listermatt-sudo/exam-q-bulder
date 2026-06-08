@@ -30,8 +30,15 @@ BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/qu
 
 
 # ✅ Load pre-built structure file (instant)
+import os
+
 def load_structure():
-    with open("structure.json", "r") as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(base_dir, "structure.json")
+
+    print("Looking for structure at:", file_path)
+
+    with open(file_path, "r") as f:
         return json.load(f)
 
 
@@ -62,6 +69,11 @@ def build_filename(month_year, paper, q):
 @app.get("/structure")
 def get_structure():
     return structure_cache
+
+@app.get("/test-file")
+def test_file():
+    import os
+    return {"files": os.listdir()}
 
 
 # ✅ Word export
