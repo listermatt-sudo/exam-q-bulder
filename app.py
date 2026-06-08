@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,9 +14,11 @@ from io import BytesIO
 import json
 import os
 
+
 # ✅ FastAPI app
 app = FastAPI()
 
+# ✅ CORS (safe to keep, even though same-origin now)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Supabase public URL
+# ✅ Supabase base URL
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
 
@@ -38,7 +40,7 @@ def load_structure():
         return json.load(f)
 
 
-# ✅ Cached structure (instant)
+# ✅ Cache structure (instant load)
 structure_cache = load_structure()
 
 
@@ -48,7 +50,7 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Build base filename (WITHOUT page suffix)
+# ✅ Build base filename (no page suffix)
 def build_base_name(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
@@ -60,7 +62,7 @@ def build_base_name(month_year, paper, q):
     return f"{month} {year} {paper}_Q{q}"
 
 
-# ✅ ✅ Fetch ALL pages of a question
+# ✅ ✅ Get ALL pages of a question
 def get_question_images(month_year, paper, q):
 
     base_name = build_base_name(month_year, paper, q)
@@ -91,13 +93,20 @@ def get_question_images(month_year, paper, q):
     return images
 
 
-# ✅ Structure endpoint
+# ✅ ✅ Serve frontend (index.html)
+@app.get("/", response_class=HTMLResponse)
+def serve_frontend():
+    with open("index.html", "r") as f:
+        return f.read()
+
+
+# ✅ ✅ Structure endpoint
 @app.get("/structure")
 def get_structure():
     return structure_cache
 
 
-# ✅ Word export
+# ✅ ✅ Word generation
 def create_word(entries, filename):
 
     doc = Document()
@@ -122,7 +131,7 @@ def create_word(entries, filename):
     doc.save(filename)
 
 
-# ✅ PDF export
+# ✅ ✅ PDF generation
 def create_pdf(entries, filename):
 
     c = canvas.Canvas(filename, pagesize=A4)
@@ -163,7 +172,7 @@ def create_pdf(entries, filename):
     c.save()
 
 
-# ✅ Generate endpoint
+# ✅ ✅ Generate endpoint
 @app.post("/generate")
 def generate(data: RequestData):
 
@@ -177,7 +186,8 @@ def generate(data: RequestData):
     return FileResponse(filename, filename=filename)
 
 
-# ✅ Health check
-@app.get("/")
-def home():
-    return {"message": "Worksheet Builder API is running"}
+# ✅ ✅ Health check
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+``
