@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Skills Map Exam Practice Builder</title>
+    <title>Worksheet Builder</title>
 
     <style>
         body {
@@ -24,14 +24,14 @@
             display: flex;
             gap: 10px;
             max-width: 480px;
-            margin: 5px auto;
+            margin: 5px 0 5px 40px;
         }
 
         .header-row {
             display: flex;
             gap: 10px;
             max-width: 480px;
-            margin: 10px auto;
+            margin: 10px 0 10px 40px;
             font-weight: bold;
         }
 
@@ -67,19 +67,16 @@
 
 <body>
 
-<!-- ✅ LOGIN -->
 <div id="loginBox">
-    <h2>Skills Map Exam Practice Builder Login</h2>
+    <h2>Worksheet Builder Login</h2>
     <input type="password" id="password" placeholder="Enter password">
     <br><br>
     <button onclick="login()">Login</button>
 </div>
 
-<!-- ✅ APP -->
 <div class="container" id="app" style="display:none;">
-    <h1>Skills Map Exam Practice Builder</h1>
+    <h1>Worksheet Builder</h1>
 
-    <!-- ✅ SINGLE HEADER ROW -->
     <div class="header-row">
         <div class="header-cell">Series</div>
         <div class="header-cell">Paper</div>
@@ -99,7 +96,6 @@
 
 <script>
 
-// ✅ Login
 function login() {
     const pw = document.getElementById("password").value;
 
@@ -112,19 +108,20 @@ function login() {
     }
 }
 
-// ✅ Global structure
 let structure = {};
 
-
-// ✅ Load structure
 async function loadStructure() {
-
     try {
         const res = await fetch("/structure");
         structure = await res.json();
 
         document.getElementById("rows").innerHTML = "";
-        addRow();
+
+        const loaded = loadFromURL();
+
+        if (!loaded) {
+            addRow();
+        }
 
     } catch (err) {
         document.getElementById("rows").innerHTML = "Failed to load data.";
@@ -133,7 +130,34 @@ async function loadStructure() {
 }
 
 
-// ✅ Add row
+function loadFromURL() {
+
+    const params = new URLSearchParams(window.location.search);
+    const data = params.get("data");
+
+    if (!data) return false;
+
+    const entries = data.split(";");
+
+    entries.forEach(entry => {
+
+        if (!entry) return;
+
+        let [monthYear, paper, q] = entry.split("|");
+
+        if (!monthYear || !paper || !q) return;
+
+        if (monthYear.startsWith("Nov ")) {
+            monthYear = monthYear.replace("Nov", "November");
+        }
+
+        addRowFromData(monthYear.trim(), paper.trim(), parseInt(q));
+    });
+
+    return true;
+}
+
+
 function addRow() {
 
     const div = document.createElement("div");
@@ -147,29 +171,30 @@ function addRow() {
 
     document.getElementById("rows").appendChild(div);
 
+    populateRow(div);
+}
+
+
+function populateRow(div) {
+
     const monthSelect = div.querySelector(".month");
     const paperSelect = div.querySelector(".paper");
     const questionSelect = div.querySelector(".question");
 
-    // ✅ Months
     const months = Object.keys(structure).sort();
     monthSelect.innerHTML = months.map(m => `<option>${m}</option>`).join("");
 
-    // ✅ Papers
     function updatePapers() {
         const selectedMonth = monthSelect.value;
 
         let papers = Object.keys(structure[selectedMonth] || {});
-
         const order = ["1F","2F","3F","1H","2H","3H"];
-        papers.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        papers.sort((a,b) => order.indexOf(a) - order.indexOf(b));
 
         paperSelect.innerHTML = papers.map(p => `<option>${p}</option>`).join("");
-
         updateQuestions();
     }
 
-    // ✅ Questions
     function updateQuestions() {
         const selectedMonth = monthSelect.value;
         const selectedPaper = paperSelect.value;
@@ -187,7 +212,53 @@ function addRow() {
 }
 
 
-// ✅ Generate worksheet
+function addRowFromData(monthYear, paper, q) {
+
+    const div = document.createElement("div");
+    div.className = "row";
+
+    div.innerHTML = `
+        <select class="month"></select>
+        <select class="paper"></select>
+        <select class="question"></select>
+    `;
+
+    document.getElementById("rows").appendChild(div);
+
+    const monthSelect = div.querySelector(".month");
+    const paperSelect = div.querySelector(".paper");
+    const questionSelect = div.querySelector(".question");
+
+    const months = Object.keys(structure).sort();
+    monthSelect.innerHTML = months.map(m => `<option>${m}</option>`).join("");
+
+    monthSelect.value = monthYear;
+
+    function updatePapers() {
+        let papers = Object.keys(structure[monthYear] || {});
+
+        const order = ["1F","2F","3F","1H","2H","3H"];
+        papers.sort((a,b)=> order.indexOf(a)-order.indexOf(b));
+
+        paperSelect.innerHTML = papers.map(p => `<option>${p}</option>`).join("");
+        paperSelect.value = paper;
+
+        updateQuestions();
+    }
+
+    function updateQuestions() {
+        const questions = structure[monthYear]?.[paper] || [];
+
+        questionSelect.innerHTML =
+            questions.map(qv => `<option>Q${qv}</option>`).join("");
+
+        questionSelect.value = "Q"+q;
+    }
+
+    updatePapers();
+}
+
+
 async function generate() {
 
     const rows = document.querySelectorAll("#rows .row");
@@ -200,10 +271,7 @@ async function generate() {
         const q = row.querySelector(".question").value.replace("Q", "");
 
         const parts = monthYear.split(" ");
-        const month = parts[0];
-        const year = parts[1];
-
-        const paperName = `${month} ${year} ${paper}`;
+        const paperName = `${parts[0]} ${parts[1]} ${paper}`;
 
         entries.push([paperName, parseInt(q)]);
     });
@@ -220,21 +288,19 @@ async function generate() {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
 
-        // ✅ Ask for filename
+        // ✅ NEW DEFAULT NAME HERE
         let filename = prompt(
             "Enter file name:",
-            new Date().toISOString().slice(0,10) + "_exam practice"
+            "Skills Map Exam Practice"
         );
 
-        if (!filename) {
-            filename = "exam practice";
-        }
+        if (!filename) filename = "Skills Map Exam Practice";
 
-        const extension = type === "word" ? ".docx" : ".pdf";
+        const ext = type === "word" ? ".docx" : ".pdf";
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename + extension;
+        a.download = filename + ext;
         a.click();
 
     } catch (err) {
