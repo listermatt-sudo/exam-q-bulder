@@ -83,24 +83,30 @@ def get_valid_questions(month_year, paper):
 @app.get("/structure")
 def get_structure():
 
-    structure = {}
+    test_results = []
 
-    for month in MONTHS:
+    # Test a few known files directly
+    tests = [
+        ("June 2025", "1F", 1),
+        ("June 2025", "2F", 1),
+        ("November 2025", "1F", 1),
+        ("November 2025", "2H", 1),
+    ]
 
-        month_data = {}
+    for month, paper, q in tests:
 
-        for paper in PAPERS:
+        filename = build_filename(month, paper, q)
+        url = f"{BASE_URL}/{filename}"
 
-            questions = get_valid_questions(month, paper)
+        response = requests.get(url)
 
-            if questions:
-                month_data[paper] = questions
+        test_results.append({
+            "filename": filename,
+            "url": url,
+            "status": response.status_code
+        })
 
-        # ✅ only include month if it has data
-        if month_data:
-            structure[month] = month_data
-
-    return structure
+    return test_results
 
 
 # ✅ Word generation
