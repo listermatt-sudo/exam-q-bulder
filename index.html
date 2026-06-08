@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Worksheet Builder</title>
+    <title>Skills Map Exam Practice Builder</title>
 
     <style>
         body {
@@ -20,18 +20,20 @@
             box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
         }
 
+        /* ✅ Centre rows properly */
         .row {
             display: flex;
             gap: 10px;
-            max-width: 480px;
-            margin: 5px 0 5px 40px;
+            width: fit-content;
+            margin: 5px auto;
         }
 
+        /* ✅ Centre headers */
         .header-row {
             display: flex;
             gap: 10px;
-            max-width: 480px;
-            margin: 10px 0 10px 40px;
+            width: fit-content;
+            margin: 10px auto;
             font-weight: bold;
         }
 
@@ -67,15 +69,17 @@
 
 <body>
 
+<!-- LOGIN -->
 <div id="loginBox">
-    <h2>Worksheet Builder Login</h2>
+    <h2>Skills Map Exam Practice Builder Login</h2>
     <input type="password" id="password" placeholder="Enter password">
     <br><br>
     <button onclick="login()">Login</button>
 </div>
 
+<!-- APP -->
 <div class="container" id="app" style="display:none;">
-    <h1>Worksheet Builder</h1>
+    <h1>Skills Map Exam Practice Builder</h1>
 
     <div class="header-row">
         <div class="header-cell">Series</div>
@@ -96,6 +100,7 @@
 
 <script>
 
+// ✅ Login
 function login() {
     const pw = document.getElementById("password").value;
 
@@ -110,6 +115,7 @@ function login() {
 
 let structure = {};
 
+// ✅ Load structure + Excel data
 async function loadStructure() {
     try {
         const res = await fetch("/structure");
@@ -130,6 +136,7 @@ async function loadStructure() {
 }
 
 
+// ✅ ✅ LOAD FROM EXCEL (NO DUPLICATES)
 function loadFromURL() {
 
     const params = new URLSearchParams(window.location.search);
@@ -138,6 +145,8 @@ function loadFromURL() {
     if (!data) return false;
 
     const entries = data.split(";");
+
+    const seen = new Set(); // ✅ prevents duplicates
 
     entries.forEach(entry => {
 
@@ -151,13 +160,24 @@ function loadFromURL() {
             monthYear = monthYear.replace("Nov", "November");
         }
 
-        addRowFromData(monthYear.trim(), paper.trim(), parseInt(q));
+        monthYear = monthYear.trim();
+        paper = paper.trim();
+        q = parseInt(q);
+
+        const key = `${monthYear}|${paper}|${q}`;
+
+        if (seen.has(key)) return;  // ✅ skip duplicate
+
+        seen.add(key);
+
+        addRowFromData(monthYear, paper, q);
     });
 
     return true;
 }
 
 
+// ✅ Add blank row
 function addRow() {
 
     const div = document.createElement("div");
@@ -175,6 +195,7 @@ function addRow() {
 }
 
 
+// ✅ Populate dropdown row
 function populateRow(div) {
 
     const monthSelect = div.querySelector(".month");
@@ -189,7 +210,7 @@ function populateRow(div) {
 
         let papers = Object.keys(structure[selectedMonth] || {});
         const order = ["1F","2F","3F","1H","2H","3H"];
-        papers.sort((a,b) => order.indexOf(a) - order.indexOf(b));
+        papers.sort((a,b)=> order.indexOf(a)-order.indexOf(b));
 
         paperSelect.innerHTML = papers.map(p => `<option>${p}</option>`).join("");
         updateQuestions();
@@ -212,6 +233,7 @@ function populateRow(div) {
 }
 
 
+// ✅ Add row from Excel
 function addRowFromData(monthYear, paper, q) {
 
     const div = document.createElement("div");
@@ -252,13 +274,14 @@ function addRowFromData(monthYear, paper, q) {
         questionSelect.innerHTML =
             questions.map(qv => `<option>Q${qv}</option>`).join("");
 
-        questionSelect.value = "Q"+q;
+        questionSelect.value = "Q" + q;
     }
 
     updatePapers();
 }
 
 
+// ✅ Generate Skills Map Exam Practice
 async function generate() {
 
     const rows = document.querySelectorAll("#rows .row");
@@ -288,13 +311,12 @@ async function generate() {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
 
-        // ✅ NEW DEFAULT NAME HERE
         let filename = prompt(
             "Enter file name:",
             "Skills Map Exam Practice"
         );
 
-        if (!filename) filename = "Skills Map Exam Practice";
+        if (!filename) filename = "Exam Practice";
 
         const ext = type === "word" ? ".docx" : ".pdf";
 
