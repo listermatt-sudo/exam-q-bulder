@@ -66,8 +66,8 @@ def get_all_files():
 
     response = requests.get(url, headers=headers)
 
-    if response.status_code != 200:
-        return []
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
 
     return response.json()
 
