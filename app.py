@@ -17,7 +17,7 @@ import os
 # ✅ FastAPI app
 app = FastAPI()
 
-# ✅ CORS (safe to keep)
+# ✅ CORS (safe even if same-origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Image storage
+# ✅ Supabase base URL
 BASE_URL = "https://gdcwjpkgffqmatsmuqra.supabase.co/storage/v1/object/public/question-images"
 
 
@@ -48,7 +48,7 @@ class RequestData(BaseModel):
     filetype: str
 
 
-# ✅ Build base filename
+# ✅ Build filename
 def build_base_name(month_year, paper, q):
     parts = month_year.split()
     month = parts[0]
@@ -66,7 +66,7 @@ def get_question_images(month_year, paper, q):
     base_name = build_base_name(month_year, paper, q)
     images = []
 
-    # ✅ Try single page first
+    # ✅ Try single-page first
     single_url = f"{BASE_URL}/{base_name}.png"
 
     try:
@@ -77,7 +77,7 @@ def get_question_images(month_year, paper, q):
     except:
         pass
 
-    # ✅ Otherwise check multi-page (_1, _2, ...)
+    # ✅ Otherwise try multi-page versions
     page = 1
 
     while True:
@@ -111,12 +111,12 @@ def get_structure():
     return structure_cache
 
 
-# ✅ ✅ ✅ WORD EXPORT (full width + narrow margins)
+# ✅ ✅ ✅ WORD EXPORT (FULL WIDTH + NARROW MARGINS)
 def create_word(entries, filename):
 
     doc = Document()
 
-    # ✅ Set narrower margins (~0.75 inch)
+    # ✅ Set margins (~0.75 inch)
     section = doc.sections[0]
     section.top_margin = 700000
     section.bottom_margin = 700000
@@ -138,7 +138,7 @@ def create_word(entries, filename):
 
         for img in images:
 
-            # ✅ Compute full available width
+            # ✅ Compute available width dynamically
             section = doc.sections[0]
             available_width = (
                 section.page_width
@@ -153,7 +153,7 @@ def create_word(entries, filename):
     doc.save(filename)
 
 
-# ✅ PDF export (unchanged)
+# ✅ PDF export (already well tuned)
 def create_pdf(entries, filename):
 
     c = canvas.Canvas(filename, pagesize=A4)
